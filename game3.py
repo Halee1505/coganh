@@ -167,7 +167,10 @@ class Game:
             newBoard[posMove[1][0]][posMove[1][1]] = self.player
             newBoard[posGanh[0][0]][posGanh[0][1]] = self.player
             newBoard[posGanh[1][0]][posGanh[1][1]] = self.player
-            newGameList.append(Game(self.newBoard, newBoard, self.player * -1))
+            newGame = Game(self.newBoard, newBoard, self.player * -1)
+            newGame.Ganh()
+            newGame.Vay()
+            newGameList.append(newGame)
         else:
             playerPosition = self.getPlayerPosition(self.player)
             for position in playerPosition:
