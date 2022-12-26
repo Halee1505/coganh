@@ -1,12 +1,24 @@
 # code AI chơi cờ gánh bằng minimax
 import copy
+import math
+from draw import draw
+import random
+import time
 ROW = 5
 COL = 5
+# RED = -1
+# BLUE = 1
 INIT_BOARD = [[1, 1, 1, 1, 1],
               [1, 0, 0, 0, 1],
               [1, 0, 0, 0, -1],
               [-1, 0, 0, 0, -1],
               [-1, -1, -1, -1, -1]]
+
+weight = [[1, 1, 3, 1, 1],
+          [1, 7, 4, 7, 1],
+          [3, 4, 8, 4, 3],
+          [1, 7, 4, 7, 1],
+          [1, 1, 3, 1, 1]]
 
 
 class Game:
@@ -14,6 +26,46 @@ class Game:
         self.board = board
         self.newBoard = newBoard
         self.player = player  # player turn to move next
+
+    def gameOver(self):
+        count = 0
+        for i in range(ROW):
+            for j in range(COL):
+                count += self.newBoard[i][j]
+        if count == 16 or count == -16:
+            return True
+        return False
+
+    def evaluate(self):
+        count_me = 0
+        count_player = 0
+        for i, row in enumerate(self.board):
+            for j, pos in enumerate(row):
+                if pos == 1:
+                    count_me = count_me + \
+                        weight[i][j] + len(self.getValidMove((i, j)))
+                elif pos == -1:
+                    count_player = count_player + \
+                        weight[i][j] + len(self.getValidMove((i, j)))
+        return count_me - count_player
+
+    def oldEvaluate(self):
+        count_me = 0
+        count_player = 0
+    #     for i, row in enumerate(self.board):
+    #         for j, pos in enumerate(row):
+    #             if pos == 1:
+    #                 count_me += weight[i][j]
+    #             elif pos == -1:
+    #                 count_player += weight[i][j]
+    #     return count_me - count_player
+        for i in range(ROW):
+            for j in range(COL):
+                if self.newBoard[i][j] == 1:
+                    count_me += len(self.getValidMove((i, j)))
+                elif self.newBoard[i][j] == -1:
+                    count_player += len(self.getValidMove((i, j)))
+        return count_me - count_player
 
     def getMove(self):
         for i in range(ROW):
@@ -107,6 +159,8 @@ class Game:
             if self.posNotMove(position):
                 notMoveList.append(position)
         biVayList = self.checkVay(notMoveList)
+        if biVayList == None:
+            return
         for pos in biVayList:
             self.newBoard[pos[0]][pos[1]] = -self.player
 
@@ -115,12 +169,12 @@ class Game:
         x, y = end
         coupleNeighborList = self.getCoupleNeighbor(x, y)
         for coupleNeighbor in coupleNeighborList:
-            if self.newBoard[coupleNeighbor[0][0]][coupleNeighbor[0][1]] == -self.player and \
-                    self.newBoard[coupleNeighbor[1][0]][coupleNeighbor[1][1]] == -self.player:
+            if self.newBoard[coupleNeighbor[0][0]][coupleNeighbor[0][1]] == self.player and \
+                    self.newBoard[coupleNeighbor[1][0]][coupleNeighbor[1][1]] == self.player:
                 self.newBoard[coupleNeighbor[0][0]
-                              ][coupleNeighbor[0][1]] = self.player
+                              ][coupleNeighbor[0][1]] = -self.player
                 self.newBoard[coupleNeighbor[1][0]
-                              ][coupleNeighbor[1][1]] = self.player
+                              ][coupleNeighbor[1][1]] = -self.player
                 return
 
     def checkMo(self, pos):
@@ -159,19 +213,7 @@ class Game:
 
     def getNewGameList(self):
         newGameList = []
-        mo = self.Mo()
-        if mo is not None:
-            posMove, posGanh = mo
-            newBoard = copy.deepcopy(self.newBoard)
-            newBoard[posMove[0][0]][posMove[0][1]] = 0
-            newBoard[posMove[1][0]][posMove[1][1]] = self.player
-            newBoard[posGanh[0][0]][posGanh[0][1]] = self.player
-            newBoard[posGanh[1][0]][posGanh[1][1]] = self.player
-            newGame = Game(self.newBoard, newBoard, self.player * -1)
-            newGame.Ganh()
-            newGame.Vay()
-            newGameList.append(newGame)
-        else:
+        if self.board == None:
             playerPosition = self.getPlayerPosition(self.player)
             for position in playerPosition:
                 validMoveList = self.getValidMove(position)
@@ -182,9 +224,34 @@ class Game:
                     newBoard[start[0]][start[1]] = 0
                     newBoard[end[0]][end[1]] = self.player
                     newGame = Game(self.newBoard, newBoard, self.player * -1)
-                    newGame.Ganh()
-                    newGame.Vay()
                     newGameList.append(newGame)
+        else:
+            mo = self.Mo()
+            if mo is not None:
+                posMove, posGanh = mo
+                newBoard = copy.deepcopy(self.newBoard)
+                newBoard[posMove[0][0]][posMove[0][1]] = 0
+                newBoard[posMove[1][0]][posMove[1][1]] = self.player
+                newBoard[posGanh[0][0]][posGanh[0][1]] = self.player
+                newBoard[posGanh[1][0]][posGanh[1][1]] = self.player
+                newGame = Game(self.newBoard, newBoard, self.player * -1)
+                newGame.Vay()
+                newGameList.append(newGame)
+            else:
+                playerPosition = self.getPlayerPosition(self.player)
+                for position in playerPosition:
+                    validMoveList = self.getValidMove(position)
+                    for validMove in validMoveList:
+                        start = position
+                        end = validMove
+                        newBoard = copy.deepcopy(self.newBoard)
+                        newBoard[start[0]][start[1]] = 0
+                        newBoard[end[0]][end[1]] = self.player
+                        newGame = Game(self.newBoard, newBoard,
+                                       self.player * -1)
+                        newGame.Ganh()
+                        newGame.Vay()
+                        newGameList.append(newGame)
         return newGameList
 
 
@@ -202,78 +269,204 @@ def printBoard(board):
     print("========================")
 
 
+def updateGame(board, start, end, player):
+    newBoard = copy.deepcopy(board)
+    newBoard[start[0]][start[1]] = 0
+    newBoard[end[0]][end[1]] = player
+    return newBoard
+
+
+def minimax(game, depth, alpha, beta, maximizingPlayer):
+    if depth == 0 or game.gameOver():
+        return game.evaluate(), None
+
+    if maximizingPlayer:
+        maxEval = -math.inf
+        newGameList = game.getNewGameList()
+        if newGameList == []:
+            return -math.inf, game
+
+        curNewGame = newGameList[0]
+        for newGame in newGameList:
+            curNewGame = newGame
+            eval, nextGame = minimax(newGame, depth - 1, alpha, beta, False)
+            maxEval = max(maxEval, eval)
+            alpha = max(alpha, eval)
+            if beta <= alpha:
+                break
+        return maxEval, curNewGame
+    else:
+        minEval = math.inf
+        newGameList = game.getNewGameList()
+        if newGameList == []:
+            return math.inf, game
+        curNewGame = newGameList[0]
+        for newGame in newGameList:
+            curNewGame = newGame
+            eval, nextGame = minimax(newGame, depth - 1, alpha, beta, True)
+            minEval = min(minEval, eval)
+            beta = min(beta, eval)
+            if beta <= alpha:
+                break
+        return minEval, curNewGame
+
+
+def oldMinimax(game, depth, alpha, beta, maximizingPlayer):
+    if depth == 0 or game.gameOver():
+        return game.oldEvaluate(), None
+
+    if maximizingPlayer:
+        maxEval = -math.inf
+        newGameList = game.getNewGameList()
+        if newGameList == []:
+            return -math.inf, game
+
+        curNewGame = newGameList[0]
+        for newGame in newGameList:
+            curNewGame = newGame
+            eval, nextGame = minimax(newGame, depth - 1, alpha, beta, False)
+            maxEval = max(maxEval, eval)
+            alpha = max(alpha, eval)
+            if beta <= alpha:
+                break
+        return maxEval, curNewGame
+    else:
+        minEval = math.inf
+        newGameList = game.getNewGameList()
+        if newGameList == []:
+            return math.inf, game
+        curNewGame = newGameList[0]
+        for newGame in newGameList:
+            curNewGame = newGame
+            eval, nextGame = minimax(newGame, depth - 1, alpha, beta, True)
+            minEval = min(minEval, eval)
+            beta = min(beta, eval)
+            if beta <= alpha:
+                break
+        return minEval, curNewGame
+
+
 def goToNextState(game):
-    newGameList = game.getNewGameList()
-    if newGameList == []:
+    minimaxValue, newGame = minimax(game, 4, -math.inf, math.inf, True)
+    if minimaxValue == -math.inf or minimaxValue == math.inf or newGame is None:
         return None
-    return newGameList
+    return newGame
 
 
 def move(prev_board, board, player, remain_time_x, remain_time_o):
     game = Game(prev_board, board, player)
-    newGameList = goToNextState(game)
-    if newGameList is None:
-        print('None')
+    nextState = goToNextState(game)
+    if nextState is None:
         return None
-    for newGame in newGameList:
-        printBoard(newGame.newBoard)
+    return nextState
 
-    return newGameList
+
+def oldGoToNextState(game):
+    minimaxValue, newGame = oldMinimax(game, 4, -math.inf, math.inf, False)
+    if minimaxValue == -math.inf or minimaxValue == math.inf or newGame is None:
+        return None
+    return newGame
+
+
+def oldMove(prev_board, board, player, remain_time_x, remain_time_o):
+    game = Game(prev_board, board, player)
+    nextState = oldGoToNextState(game)
+    if nextState is None:
+        return None
+    return nextState
+
+
+def randomMove(prev_board, board, player, remain_time_x, remain_time_o):
+    game = Game(prev_board, board, player)
+    newGameList = game.getNewGameList()
+    if newGameList == []:
+        return None
+    return random.choice(newGameList)
+
+
+def checkWin(board):
+    countX = 0
+    countO = 0
+    for i in range(ROW):
+        for j in range(COL):
+            if board[i][j] == 1:
+                countO += 1
+            elif board[i][j] == -1:
+                countX += 1
+    if countX >= countO:
+        return -1
+    else:
+        return 1
 
 
 def main():
-    # player = -1
-    # prev_board = [
-    #     [-1, 0, 1, 0, 1],
-    #     [0, -1, 0, 0, 1],
-    #     [1, 1, -1, 0, 0],
-    #     [-1, -1, 1, 1, 1],
-    #     [-1, 0, 0, -1, -1]
-    # ]
-    # board = [
-    #     [0, 0, 1, 0, 1],
-    #     [-1, -1, 0, 0, 1],
-    #     [1, 1, -1, 0, 0],
-    #     [-1, -1, 1, 1, 1],
-    #     [-1, 0, 0, -1, -1]
-    # ]
-
-    # player = 1
-    # prev_board = [
-    #     [0, 0, 1, 0, 1],
-    #     [-1, -1, 0, 0, 1],
-    #     [-1, -1, 1, 0, 0],
-    #     [-1, -1, -1, 1, 1],
-    #     [-1, 1, 0, 0, 1]
-    # ]
-    # board = [
-    #     [0, 0, 1, 0, 1],
-    #     [-1, -1, 0, 0, 1],
-    #     [-1, -1, 1, 0, 0],
-    #     [-1, -1, 0, 1, 1],
-    #     [-1, 1, -1, 0, 1]
-    # ]
-
-    # thế cờ mở
+    prev_board = None
+    board = INIT_BOARD
     player = -1
+    remain_time_x = 0
+    remain_time_o = 0
+    step_count = 100
+    draw(board)
+    while True:
+        nextState = move(prev_board, board, player,
+                         remain_time_x, remain_time_o)
+
+        if nextState is None:
+            print("player", -player, "win")
+            break
+        prev_board = nextState.board
+        board = nextState.newBoard
+
+        draw(board)
+        step_count -= 1
+        if step_count == 0:
+            print("100 step, Win player", checkWin(board))
+
+            break
+        randomNextState = oldMove(
+            prev_board, board, -player, remain_time_x, remain_time_o)
+        if randomNextState is None:
+            print("player", player, "win")
+            break
+        prev_board = randomNextState.board
+        board = randomNextState.newBoard
+        draw(board)
+        step_count -= 1
+        if step_count == 0:
+            print("100 step, Win player", checkWin(board))
+
+            break
+        # player *= -1
+
+
+def test():
     prev_board = [
-        [0, 0, 1, 0, 1],
-        [-1, -1, 0, 0, 1],
-        [-1, -1, 1, 0, 0],
-        [-1, -1, 1, 1, 1],
-        [-1, 1, 0, 0, 1]
+        [1, 1,  1, 1, 1],
+        [1, 0, 0, 0, 1],
+        [1,  0, 0, 0, -1],
+        [-1, 0, 0, 0, -1],
+        [-1, -1, -1, -1, -1]
     ]
     board = [
-        [0, 0, 1, 0, 1],
-        [-1, -1, 0, 0, 1],
-        [-1, -1, 1, 0, 0],
-        [-1, -1, 0, 1, 1],
-        [-1, 1, 1, 0, 1]
-    ]
+        [1, 1,  1, 1, 1],
+        [1, 1, 0, 0,  1],
+        [0, 0,  0, 0, -1],
+        [-1, 0, 0,  0, -1],
+        [-1, -1, -1, -1, -1]]
+    player = -1
 
     game = Game(prev_board, board, player)
-    printBoard(game.newBoard)
-    move(prev_board, board, player, 0, 0)
+    nextGame = game.getNewGameList()
+    for game in nextGame:
+        print("+++++++++++++++++++++++++++++++++++++++")
+        printBoard(game.board)
+        draw(game.board)
+        printBoard(game.newBoard)
+        print(game.getMove())
+        draw(game.newBoard)
+        print(game.evaluate())
+        print("+++++++++++++++++++++++++++++++++++++++")
 
 
+# test()
 main()
